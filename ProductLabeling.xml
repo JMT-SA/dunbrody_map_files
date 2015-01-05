@@ -1,0 +1,201 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE sqlMap
+PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" 
+"http://www.ibatis.com/dtd/sql-map-2.dtd">
+<sqlMap namespace="ProductLabeling">
+
+    <select id="getFgSetup"  resultClass="za.co.multitier.midware.sys.datasource.FgSetup">
+        SELECT  fruit_packing_fg_setups.*,parties_roles.party_name as organization_code from fruit_packing_fg_setups,parties_roles where fruit_packing_fg_setups.id = #value# and
+        fruit_packing_fg_setups.marketing_org_party_role_id = parties_roles.id
+    </select>
+
+
+
+
+    <select id="getPUC" resultClass="za.co.multitier.midware.sys.datasource.PUC">
+        SELECT * from pucs where puc_code = #value#
+    </select>
+    <select id="getCarton" resultClass="za.co.multitier.midware.sys.datasource.Carton">
+        SELECT * from cartons where carton_number = #value#
+    </select>
+
+
+    <select id="getProductionRun" resultClass="za.co.multitier.midware.sys.datasource.ProductionRun">
+        SELECT
+        fruit_packing_production_run_details.farm_code,
+        fruit_packing_production_run_details.puc_code,
+        fruit_packing_production_run_details.account_code,
+        fruit_packing_production_run_details.batch_code,
+        fruit_packing_production_run_details.season,
+        fruit_packing_production_run_details.day_line_batch_number,
+        production_runs.production_run_code,
+        production_runs.id,
+        resources.resource_code as line_code,
+        resources.id as line_id
+        FROM
+        public.production_runs,
+        public.fruit_packing_production_run_details,
+        public.resources
+        WHERE
+        production_runs.run_details_record_id = fruit_packing_production_run_details.id AND
+        production_runs.line_resource_id = resources.id AND
+        production_runs.id = #value#
+    </select>
+    <select id="getLinePhc" resultClass="java.lang.String">
+        SELECT attr1_value from resources where id = #value#
+    </select>
+
+    <select id="getFgSetupCode" resultClass="java.lang.String">
+        select fruit_packing_fg_setups.fg_setup_code from fruit_packing_fg_setups where id = #value#
+    </select>
+
+    <select id="getFgProductCode" resultClass="java.lang.String">
+        select fg_products.fg_product_code from fg_products where id = #value#
+    </select>
+
+    <select id="getEmployeeId" resultClass="java.lang.Integer">
+        SELECT id from incentivized_employees where personnel_barcode_number = #value#
+    </select>
+    <select id="getCartonCalculatedMass" resultClass="java.lang.Double">
+        SELECT fg_product_weights.packed_nett_weight
+        FROM
+        public.fg_product_weights,
+        public.packs,
+        public.fg_products,
+        public.item_pack_products,
+        public.varieties
+        WHERE
+        fg_product_weights.pack_id = packs.id AND
+        fg_products.item_pack_product_id = item_pack_products.id AND
+        item_pack_products.variety_id = varieties.id and
+        varieties.commodity_id = fg_product_weights.commodity_id and
+        fg_products.pack_code = packs.pack_code AND
+        fg_products.id = #value#
+    </select>
+
+    <select id="getSeasonOrderQtyDetails" parameterClass = "java.util.HashMap" resultClass="java.util.HashMap">
+        SELECT id,quantity_required,quantity_produced from season_order_quantities where season_code = #season_code# and
+        customer_order_number = #order_number#
+    </select>
+    <update id = "updateSeasonOrderQty" parameterClass = "java.util.HashMap">
+        update season_order_quantities SET quantity_produced = #new_qty# where id = #id#
+    </update>
+    <update id = "setMesCtlSequence" parameterClass = "za.co.multitier.midware.sys.datasource.MesControlFile">
+        update mes_control_files SET sequence_number = #sequence_number# where id = #id#
+    </update>
+    <select id = "getMesCtlSequence" resultClass = "za.co.multitier.midware.sys.datasource.MesControlFile">
+        select * from mes_control_files where object_type = #value#
+    </select>
+    <select id = "getResource" resultClass = "za.co.multitier.midware.sys.datasource.Resource">
+        select resources.*, resource_types.resource_type_code,resource_types.attr1_name,
+        resource_types.attr2_name,resource_types.attr3_name,resource_types.attr4_name,
+        resource_types.parent_id from resources, resource_types where resources.id = #value# and
+        resources.resource_type_id = resource_types.id
+
+    </select>
+
+    <insert id="createCarton" parameterClass="za.co.multitier.midware.sys.datasource.FgSetup">
+        INSERT INTO cartons(
+        fg_product_id, organization_code, gtin_id, packed_tm_group,
+        inventory_code,
+        pick_reference, sell_by_date, channel, product_characteristics,
+        remarks, batch_code, created_on, gtin_code,
+        mark_code,
+        season,
+        iso_week, packer_barcode, packer_incentivized_employee_id, account_code,
+        drop_resource_id, production_run_id, shift_id, packed_date_time,
+        farm_code, puc,carton_fruit_nett_mass,calculated_mass,fruit_packing_fg_setup_id)
+        VALUES (#fg_product_id#, #organization_code#, #gtin_id#, #packed_tm_group_code#,
+        #inventory_code#,
+        #pick_reference#, #sell_by_code#, #channel#, #product_chars#,
+        #remarks#, #batch_code#, now(), #gtin_code#,
+        #mark_code#,
+        #season#,
+        #iso_week#, #packer_barcode#, #packer_incentivized_employee_id#, #account_code#,
+        #drop_resource_id#, #production_run_id#, #shift_id#, now(),
+        #farm_code#, #puc#,#weight#,#calculated_mass#,#id#)
+
+    </insert>
+ 
+
+
+    <update id="updateCartonStats" parameterClass="za.co.multitier.midware.sys.datasource.FgSetup">
+        UPDATE production_run_stats set cartons_printed = cartons_printed + 1,cartons_weight = cartons_weight + #weight#  where (production_run_id = #production_run_id#)
+
+
+    </update>
+
+
+
+
+
+    <update id="updateBinsTippedStats" parameterClass="za.co.multitier.midware.sys.datasource.Bin">
+        UPDATE production_run_stats set bins_tipped = bins_tipped + 1,bins_tipped_weight = bins_tipped_weight + #weight# where (production_run_id = #production_run_id#)
+    </update>
+
+
+
+    <select id="getShift" parameterClass="java.util.HashMap" resultClass="java.util.HashMap">
+        SELECT
+        shifts.*
+        FROM
+        public.shifts,
+        public.shift_types,
+        public.employment_types
+        WHERE
+        shifts.shift_type_id = shift_types.id AND
+        shift_types.employment_type_id = employment_types.id AND
+        employment_types.employment_type_code = #employment_type# AND
+        shift_types.packhouse_resource_id = #packhouse_resource_id# and
+        now() between shifts.start_date_time and shifts.end_date_time
+        order by shifts.end_date_time  desc limit 1
+
+    </select>
+
+    <select id="getPreviousShift" parameterClass="java.util.HashMap" resultClass="java.util.HashMap">
+        SELECT
+        shifts.*
+        FROM
+        public.shifts,
+        public.shift_types,
+        public.employment_types
+        WHERE
+        shifts.shift_type_id = shift_types.id AND
+        shift_types.employment_type_id = employment_types.id AND
+        employment_types.employment_type_code = #employment_type# AND
+        shift_types.packhouse_resource_id = #packhouse_resource_id# and
+        shifts.end_date_time &#60; now()
+        order by shifts.end_date_time desc limit 1
+
+    </select>
+
+    <select id="getShiftForEmployee" parameterClass="java.util.HashMap" resultClass="java.util.HashMap">
+        SELECT
+        shifts.*
+        FROM
+        public.shift_types,
+        public.shifts,
+        public.incentivized_employees
+        WHERE
+        shifts.shift_type_id = shift_types.id AND
+        incentivized_employees.shift_type_id = shift_types.id AND
+        incentivized_employees.personnel_barcode_number = #barcode_num# AND
+        shifts.id = #id#
+
+
+    </select>
+
+    <select id="getLinePackHouseId" resultClass="java.lang.Integer">
+        SELECT
+        resources.parent_id
+        FROM
+        public.resources,
+        public.resource_types
+        WHERE
+        resources.resource_type_id = resource_types.id AND
+        resources.id = #value# AND
+        resource_types.resource_type_code = 'LINE'
+    </select>
+
+
+</sqlMap>

@@ -1,0 +1,138 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE sqlMap
+        PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN"
+        "http://www.ibatis.com/dtd/sql-map-2.dtd">
+<sqlMap namespace="BinTipping">
+
+    <select id="getBinOld" resultClass="za.co.multitier.midware.sys.datasource.Bin">
+        SELECT bins.id, bins.bin_number as bin_id, weight from bins
+        WHERE bin_number = #value#
+    </select>
+
+    <select id="getBin" resultClass="za.co.multitier.midware.sys.datasource.Bin">
+        SELECT
+        bins.bin_number AS bin_id,
+        seasons.season_code,
+        bins.weight AS bin_weight,
+        bins.delivery_id,
+        farms.farm_code,
+        rmt_varieties.rmt_variety_code as variety_code,
+        variety_groups.variety_group_code,
+        commodities.commodity_code,
+        rmt_products.product_class_code AS class_code,
+        deliveries.delivery_number,
+        pack_material_products.material_mass,
+        bins.id
+        FROM
+        public.bins,
+        seasons,
+        public.rmt_products,
+        public.farms,
+        public.commodities,
+        public.rmt_varieties,
+        public.deliveries,
+        public.pack_material_products,
+        public.variety_groups
+        WHERE
+        bins.rmt_product_id = rmt_products.id AND
+        bins.farm_id = farms.id AND
+        rmt_products.rmt_variety_id = rmt_varieties.id and
+        rmt_varieties.variety_group_id = variety_groups.id and
+        rmt_varieties.commodity_id = commodities.id and
+        bins.bin_number = #value# and
+        deliveries.id = bins.delivery_id and
+        bins.pack_material_product_id = pack_material_products.id   and
+        bins.season_id = seasons.id
+    </select>
+    <select id="getRmtSetup" resultClass="za.co.multitier.midware.sys.datasource.RmtSetup">
+
+        SELECT
+        bin_tipping_setups.id,
+        bin_tipping_setups.mix_class,
+        bin_tipping_setups.mix_farm,
+        bin_tipping_setups.mix_delivery,
+        commodities.commodity_code,
+
+        rmt_varieties.rmt_variety_code as variety_code,
+        variety_groups.variety_group_code,
+
+        rmt_products.product_class_code
+
+        FROM
+        public.rmt_products,
+        public.rmt_varieties,
+        public.commodities,
+        public.bin_tipping_setups,
+        variety_groups
+
+
+        WHERE
+        bin_tipping_setups.rmt_product_id = rmt_products.id AND
+        variety_groups.id = rmt_varieties.variety_group_id  and
+        rmt_products.rmt_variety_id = rmt_varieties.id AND
+        rmt_varieties.commodity_id = commodities.id AND
+        bin_tipping_setups.id = #value#
+    </select>
+
+
+    <select id="getValidTippedCountForRun"  resultClass="java.lang.Integer">
+        SELECT
+        COUNT(public.bins.id) AS n_bins
+        FROM
+        public.bins
+        INNER JOIN public.production_runs ON (public.production_runs.id = public.bins.production_run_tipped_id)
+        WHERE
+        (((public.production_runs.status = 'ACTIVE') OR
+        (public.production_runs.status = 'RE-CONFIGURING')) AND
+        ( public.production_runs.id = #value# ) and
+        (public.bins.id is not null ) and
+        (public.bins.tipped_date_time is not null))
+    </select>
+
+
+    <select id="getInvalidTippedCountForRun"  resultClass="java.lang.Integer">
+        SELECT
+        COUNT(public.bins_tipped_invalid.id) AS n_bins
+        FROM
+        public.bins_tipped_invalid
+        INNER JOIN public.production_runs ON (public.production_runs.id = public.bins_tipped_invalid.production_run_id)
+        WHERE
+        (((public.production_runs.status = 'active') OR
+        (public.production_runs.status = 'reconfiguring')) AND
+        ( public.production_runs.id = #value# ) and
+        (public.bins_tipped_invalid.tipped_date_time is not null))
+    </select>
+    <select id="getLineId" resultClass="java.lang.Integer">
+        SELECT id from lines where (line_code = #value#)
+    </select>
+    <select id="getTippedBin" resultClass="za.co.multitier.midware.sys.datasource.Bin">
+        SELECT bins.id, bins.bin_number as bin_id, bins.weight, production_runs.id as production_run_id,
+        production_runs.production_run_code from bins
+        inner join public.production_runs on (public.bins.production_run_tipped_id = public.production_runs.id)
+        WHERE bin_number = #value#
+    </select>
+    <select id="getInvalidBin" resultClass="za.co.multitier.midware.sys.datasource.Bin">
+        SELECT * from bins_tipped_invalid
+        WHERE bin_number = #value#
+    </select>
+
+    <update id="createTippedBin" parameterClass="za.co.multitier.midware.sys.datasource.Bin">
+        update bins set tipped_date_time = now(),production_run_tipped_id = #production_run_id#,shift_id = #shift_id#,weight = #weight#,
+        affected_by_env = 'midware',affected_by_program = 'bin_tipping', affected_by_function = 'create_tipped_bin',updated_by = 'system', updated_at = now(),
+        exit_ref = 'tipped', exit_ref_date_time = now() where id = #id#
+    </update>
+
+    <insert id="createInvalidBin" parameterClass="za.co.multitier.midware.sys.datasource.Bin">
+        INSERT INTO
+        bins_tipped_invalid (bin_id,
+        production_run_code, line_code, tipped_date_time,authorisor_name,weight,error_description)
+        VALUES (#bin_id#,#production_run_code#, #line_code#,
+        #tipped_date_time#,#authorisor_name#,#weight#,#error_description#)
+        <selectKey resultClass="int" keyProperty="id">
+            SELECT currval('bins_tipped_invalid_id_seq')
+        </selectKey>
+    </insert>
+
+
+
+</sqlMap>

@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE sqlMap
+PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN"
+"http://www.ibatis.com/dtd/sql-map-2.dtd">
+<sqlMap namespace="ActiveDevices">
+    <select id="getDevice" resultClass="za.co.multitier.midware.sys.datasource.ActiveRunResource">
+        SELECT active_run_resources.*,product_setups.setup_detail_id,production_runs.line_resource_id as line_id,fruit_packing_production_run_details.day_line_batch_number  from
+        active_run_resources,product_setups,production_runs,fruit_packing_production_run_details
+        where resource_code = #value# and
+        active_run_resources.product_setup_id = product_setups.id  and active_run_resources.production_run_id = production_runs.id and
+        production_runs.run_details_record_id = fruit_packing_production_run_details.id
+    </select>
+
+</sqlMap>
+ 
