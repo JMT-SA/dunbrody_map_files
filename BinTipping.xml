@@ -21,6 +21,7 @@
         commodities.commodity_code,
         rmt_products.product_class_code AS class_code,
         deliveries.delivery_number,
+        deliveries.orchard_code,
         pack_material_products.material_mass,
         bins.id
         FROM
