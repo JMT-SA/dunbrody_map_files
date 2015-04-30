@@ -5,8 +5,21 @@ PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN"
 <sqlMap namespace="ProductLabeling">
 
     <select id="getFgSetup"  resultClass="za.co.multitier.midware.sys.datasource.FgSetup">
-        SELECT  fruit_packing_fg_setups.*,parties_roles.party_name as organization_code from fruit_packing_fg_setups,parties_roles where fruit_packing_fg_setups.id = #value# and
-        fruit_packing_fg_setups.marketing_org_party_role_id = parties_roles.id
+        SELECT  fruit_packing_fg_setups.*,parties_roles.party_name as organization_code,commodities.commodity_code,commodities.commodity_description_long as commodity_description,
+        varieties.variety_description,item_pack_products.size_count_code,item_pack_products.grade_code,fg_products.pack_code,
+        standard_counts.count_group as size_ref
+
+        from fruit_packing_fg_setups
+
+        inner join fg_products on fg_products.id = fruit_packing_fg_setups.fg_product_id
+        inner join item_pack_products on item_pack_products.id = fg_products.item_pack_product_id
+        inner join varieties on varieties.id = item_pack_products.variety_id
+        inner join commodities on commodities.id = varieties.commodity_id
+        inner join size_count_conversions on fruit_packing_fg_setups.size_count_conversion_id = size_count_conversions.id
+        inner join standard_counts on standard_counts.id = size_count_conversions.standard_count_id
+        inner join parties_roles on fruit_packing_fg_setups.marketing_org_party_role_id = parties_roles.id
+
+        where fruit_packing_fg_setups.id = #value#
     </select>
 
 
@@ -23,6 +36,8 @@ PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN"
     <select id="getProductionRun" resultClass="za.co.multitier.midware.sys.datasource.ProductionRun">
         SELECT
         fruit_packing_production_run_details.farm_code,
+        farms.gap,
+        fruit_packing_production_run_details.orchard_code,
         fruit_packing_production_run_details.puc_code,
         fruit_packing_production_run_details.account_code,
         fruit_packing_production_run_details.batch_code,
@@ -35,11 +50,14 @@ PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN"
         FROM
         public.production_runs,
         public.fruit_packing_production_run_details,
-        public.resources
+        public.resources,
+        public.farms
         WHERE
         production_runs.run_details_record_id = fruit_packing_production_run_details.id AND
         production_runs.line_resource_id = resources.id AND
+        fruit_packing_production_run_details.farm_code = farms.farm_code AND
         production_runs.id = #value#
+
     </select>
     <select id="getLinePhc" resultClass="java.lang.String">
         SELECT attr1_value from resources where id = #value#
@@ -51,6 +69,10 @@ PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN"
 
     <select id="getFgProductCode" resultClass="java.lang.String">
         select fg_products.fg_product_code from fg_products where id = #value#
+    </select>
+
+    <select id="getCartonLabel" resultClass="za.co.multitier.midware.sys.datasource.Carton">
+        select * from carton_labels where carton_number = #value#
     </select>
 
     <select id="getEmployeeId" resultClass="java.lang.Integer">
@@ -95,7 +117,7 @@ PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN"
     </select>
 
     <insert id="createCarton" parameterClass="za.co.multitier.midware.sys.datasource.FgSetup">
-        INSERT INTO cartons(
+        INSERT INTO cartons(carton_number,
         fg_product_id, organization_code, gtin_id, packed_tm_group,
         inventory_code,
         pick_reference, sell_by_date, channel, product_characteristics,
@@ -105,7 +127,7 @@ PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN"
         iso_week, packer_barcode, packer_incentivized_employee_id, account_code,
         drop_resource_id, production_run_id, shift_id, packed_date_time,
         farm_code, puc,carton_fruit_nett_mass,calculated_mass,fruit_packing_fg_setup_id)
-        VALUES (#fg_product_id#, #organization_code#, #gtin_id#, #packed_tm_group_code#,
+        VALUES (#carton_number#,#fg_product_id#, #organization_code#, #gtin_id#, #packed_tm_group_code#,
         #inventory_code#,
         #pick_reference#, #sell_by_code#, #channel#, #product_chars#,
         #remarks#, #batch_code#, now(), #gtin_code#,
@@ -114,6 +136,57 @@ PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN"
         #iso_week#, #packer_barcode#, #packer_incentivized_employee_id#, #account_code#,
         #drop_resource_id#, #production_run_id#, #shift_id#, now(),
         #farm_code#, #puc#,#weight#,#calculated_mass#,#id#)
+
+    </insert>
+
+    <insert id="createCartonLabel" parameterClass="za.co.multitier.midware.sys.datasource.FgSetup">
+        INSERT INTO carton_labels(carton_number,
+        fg_product_id, organization_code, gtin_id, packed_tm_group,
+        inventory_code,
+        pick_reference, sell_by_date, channel, product_characteristics,
+        remarks, batch_code, created_on, gtin_code,
+        mark_code,
+        season,
+        iso_week, packer_barcode, packer_incentivized_employee_id, account_code,
+        drop_resource_id, production_run_id, shift_id, packed_date_time,
+        farm_code, puc,carton_fruit_nett_mass,calculated_mass,fruit_packing_fg_setup_id,
+        commodity_code,commodity_description,variety_description,size_count_code,grade_code,pack_code,
+        size_ref,gap,orchard_code)
+        VALUES (#carton_number#,#fg_product_id#, #organization_code#, #gtin_id#, #packed_tm_group_code#,
+        #inventory_code#,
+        #pick_reference#, #sell_by_code#, #channel#, #product_chars#,
+        #remarks#, #batch_code#, now(), #gtin_code#,
+        #mark_code#,
+        #season#,
+        #iso_week#, #packer_barcode#, #packer_incentivized_employee_id#, #account_code#,
+        #drop_resource_id#, #production_run_id#, #shift_id#, now(),
+        #farm_code#, #puc#,#weight#,#calculated_mass#,#id#,
+        #commodity_code#,#commodity_description#,#variety_description#,#size_count_code#,#grade_code#,#pack_code#,
+        #size_ref#,#gap#,#orchard_code#)
+
+    </insert>
+
+    <insert id="createCartonFromLabel" parameterClass="za.co.multitier.midware.sys.datasource.Carton">
+        INSERT INTO cartons(carton_number,
+        fg_product_id, organization_code, gtin_id, packed_tm_group,
+        inventory_code, pick_reference, sell_by_date, channel, puc, product_characteristics,
+        remarks, batch_code, created_on, gtin_code, exit_ref, exit_ref_date_time,
+        mark_code, inspection_date, temperature, temperature1, temperature2,
+        temperature3, temperature4, inspector_number, inspection_point,
+        inspection_report, season, iso_week, packer_barcode, packer_incentivized_employee_id,
+        account_code, drop_resource_id, production_run_id, shift_id,
+        gap, packed_date_time, farm_code, carton_fruit_nett_mass, calculated_mass,
+        fruit_packing_fg_setup_id,verified_at)
+
+        select carton_number,fg_product_id, organization_code, gtin_id, packed_tm_group,
+        inventory_code, pick_reference, sell_by_date, channel, puc, product_characteristics,
+        remarks, batch_code, created_on, gtin_code, exit_ref, exit_ref_date_time,
+        mark_code, inspection_date, temperature, temperature1, temperature2,
+        temperature3, temperature4, inspector_number, inspection_point,
+        inspection_report, season, iso_week, packer_barcode, packer_incentivized_employee_id,
+        account_code, drop_resource_id, production_run_id, shift_id,
+        gap, packed_date_time, farm_code, carton_fruit_nett_mass, calculated_mass,
+        fruit_packing_fg_setup_id, now() from carton_labels where carton_number = #carton_number#
 
     </insert>
  
