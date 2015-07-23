@@ -37,7 +37,7 @@ PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN"
         SELECT
         fruit_packing_production_run_details.farm_code,
         farms.gap,
-        fruit_packing_production_run_details.orchard_code,
+        nullif(fruit_packing_production_run_details.orchard_code,'') as orchard_code,
         fruit_packing_production_run_details.puc_code,
         fruit_packing_production_run_details.account_code,
         fruit_packing_production_run_details.batch_code,
