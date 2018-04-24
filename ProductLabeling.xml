@@ -22,8 +22,23 @@ PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN"
         where fruit_packing_fg_setups.id = #value#
     </select>
 
+    
+    <select id="getLabelTemplateField"  resultClass="za.co.multitier.midware.sys.datasource.LabelTemplateField">
+        select LDF.field_name,LDF.label_data_field_type as field_type,LDF.variable1,LDF.variable2,LDF.separator,LTF.position,LT.name as template_name,LT.file_name as template_file_name,LT.language
+	from label_data_fields LDF
+	inner join label_template_fields LTF on LDF.id = LTF.label_data_field_id
+	inner join label_templates LT on LT.id = LTF.label_template_id
+	where LT.name = #value#  and is_active = true
+	order by LTF.position
+    </select>
 
+    <select id="getDataFieldValue"  resultClass="za.co.multitier.midware.sys.datasource.DataFieldValue">
+        select * from translations where english = #value#
+    </select>
 
+    <select id="getTemplateFileName"  resultClass="java.lang.String">
+        select file_name from label_templates where name = #value#  and is_active = true
+    </select>
 
     <select id="getPUC" resultClass="za.co.multitier.midware.sys.datasource.PUC">
         SELECT * from pucs where puc_code = #value#
@@ -34,8 +49,10 @@ PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN"
 
 
     <select id="getProductionRun" resultClass="za.co.multitier.midware.sys.datasource.ProductionRun">
+
         SELECT
         fruit_packing_production_run_details.farm_code,
+        fruit_packing_production_run_details.labeling_rmt_variety,
         farms.gap,
         nullif(fruit_packing_production_run_details.orchard_code,'') as orchard_code,
         fruit_packing_production_run_details.puc_code,
@@ -46,16 +63,17 @@ PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN"
         production_runs.production_run_code,
         production_runs.id,
         resources.resource_code as line_code,
-        resources.id as line_id
+        resources.id as line_id,
+        pckhse.attr1_value as gln
+
         FROM
-        public.production_runs,
-        public.fruit_packing_production_run_details,
-        public.resources,
-        public.farms
+        public.production_runs
+
+        join resources pckhse on pckhse.id = production_runs.packhouse_resource_id
+        join resources on    production_runs.line_resource_id = resources.id
+        join fruit_packing_production_run_details on production_runs.run_details_record_id = fruit_packing_production_run_details.id
+        join farms on fruit_packing_production_run_details.farm_code = farms.farm_code
         WHERE
-        production_runs.run_details_record_id = fruit_packing_production_run_details.id AND
-        production_runs.line_resource_id = resources.id AND
-        fruit_packing_production_run_details.farm_code = farms.farm_code AND
         production_runs.id = #value#
 
     </select>
@@ -72,7 +90,14 @@ PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN"
     </select>
 
     <select id="getCartonLabel" resultClass="za.co.multitier.midware.sys.datasource.Carton">
-        select * from carton_labels where carton_number = #value#
+        select carton_labels.*,fg_product_weights.min_pack_weight,fg_product_weights.max_pack_weight, fg_product_weights.id as fg_product_weight_id  from carton_labels
+        inner join fg_products on fg_products.id = carton_labels.fg_product_id
+        inner join item_pack_products on item_pack_products.id = fg_products.item_pack_product_id
+        inner join varieties on varieties.id = item_pack_products.variety_id
+        inner join packs on fg_products.pack_code = packs.pack_code
+        left join fg_product_weights on (fg_product_weights.commodity_id = varieties.commodity_id and fg_product_weights.pack_id = packs.id)
+
+        where carton_number = #value#
     </select>
 
     <select id="getEmployeeId" resultClass="java.lang.Integer">
@@ -151,7 +176,7 @@ PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN"
         drop_resource_id, production_run_id, shift_id, packed_date_time,
         farm_code, puc,carton_fruit_nett_mass,calculated_mass,fruit_packing_fg_setup_id,
         commodity_code,commodity_description,variety_description,size_count_code,grade_code,pack_code,
-        size_ref,gap,orchard_code)
+        size_ref,gap,orchard_code,pack_point)
         VALUES (#carton_number#,#fg_product_id#, #organization_code#, #gtin_id#, #packed_tm_group_code#,
         #inventory_code#,
         #pick_reference#, #sell_by_code#, #channel#, #product_chars#,
@@ -162,7 +187,7 @@ PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN"
         #drop_resource_id#, #production_run_id#, #shift_id#, now(),
         #farm_code#, #puc#,#weight#,#calculated_mass#,#id#,
         #commodity_code#,#commodity_description#,#variety_description#,#size_count_code#,#grade_code#,#pack_code#,
-        #size_ref#,#gap#,#orchard_code#)
+        #size_ref#,#gap#,#orchard_code#, #pack_point#)
 
     </insert>
 
@@ -176,7 +201,7 @@ PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN"
         inspection_report, season, iso_week, packer_barcode, packer_incentivized_employee_id,
         account_code, drop_resource_id, production_run_id, shift_id,
         gap, packed_date_time, farm_code, carton_fruit_nett_mass, calculated_mass,
-        fruit_packing_fg_setup_id,verified_at)
+        fruit_packing_fg_setup_id,verified_at, pack_point)
 
         select carton_number,fg_product_id, organization_code, gtin_id, packed_tm_group,
         inventory_code, pick_reference, sell_by_date, channel, puc, product_characteristics,
@@ -185,8 +210,8 @@ PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN"
         temperature3, temperature4, inspector_number, inspection_point,
         inspection_report, season, iso_week, packer_barcode, packer_incentivized_employee_id,
         account_code, drop_resource_id, production_run_id, shift_id,
-        gap, packed_date_time, farm_code, carton_fruit_nett_mass, calculated_mass,
-        fruit_packing_fg_setup_id, now() from carton_labels where carton_number = #carton_number#
+        gap, packed_date_time, farm_code, #carton_fruit_nett_mass#, calculated_mass,
+        fruit_packing_fg_setup_id, now(),pack_point from carton_labels where carton_number = #carton_number#
 
     </insert>
  
@@ -194,6 +219,12 @@ PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN"
 
     <update id="updateCartonStats" parameterClass="za.co.multitier.midware.sys.datasource.FgSetup">
         UPDATE production_run_stats set cartons_printed = cartons_printed + 1,cartons_weight = cartons_weight + #weight#  where (production_run_id = #production_run_id#)
+
+
+    </update>
+
+    <update id="updateCartonStatsQc" parameterClass="za.co.multitier.midware.sys.datasource.Carton">
+        UPDATE production_run_stats set cartons_printed = cartons_printed + 1,cartons_weight = cartons_weight + #calculated_mass#  where (production_run_id = #production_run_id#)
 
 
     </update>
